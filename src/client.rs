@@ -1,6 +1,6 @@
 pub mod proof_of_work;
 use bincode::{deserialize, serialize};
-use proof_of_work::proto::{Puzzle, QuoteSize, SolutionState, WordOfWisdomQuote};
+use proof_of_work::proto::{Puzzle, SolutionState, SOLUTION_STATE_SIZE};
 use std::io::prelude::*;
 use std::io::Write;
 use std::mem::size_of;
@@ -25,7 +25,7 @@ fn main() -> std::io::Result<()> {
     stream.write_all(&serialize(&solution).unwrap())?;
 
     // receiving solution result
-    let mut buf = [0u8; 4];
+    let mut buf = [0u8; SOLUTION_STATE_SIZE];
     stream.read_exact(&mut buf)?;
     let solution_response: SolutionState = deserialize(&buf).unwrap();
 
@@ -37,15 +37,15 @@ fn main() -> std::io::Result<()> {
             println!("solution accepted");
 
             // receiving response size
-            let mut buf = [0u8; size_of::<QuoteSize>()];
+            let mut buf = [0u8; size_of::<usize>()];
             stream.read_exact(&mut buf)?;
-            let quote_size: QuoteSize = bincode::deserialize(&buf).unwrap();
+            let quote_size: usize = deserialize(&buf).unwrap();
 
             // receving response
-            let mut buf: Vec<u8> = vec![0; quote_size.size()];
+            let mut buf: Vec<u8> = vec![0; quote_size];
             stream.read_exact(&mut buf)?;
-            let quote: WordOfWisdomQuote = bincode::deserialize(&buf).unwrap();
-            println!("\n> \n> {} \n> ", quote.as_str());
+            let quote: &str = deserialize(&buf).unwrap();
+            println!("\n> \n> {} \n> ", quote);
         }
     }
 

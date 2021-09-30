@@ -1,5 +1,5 @@
 pub mod proof_of_work;
-use proof_of_work::proto::{Puzzle, PuzzleSolution, QuoteSize, SolutionState, WordOfWisdomQuote};
+use proof_of_work::proto::{Puzzle, PuzzleSolution, SolutionState, SOLUTION_SIZE};
 
 use bincode::{deserialize, serialize};
 use std::io::prelude::*;
@@ -21,7 +21,7 @@ fn handle_connection(mut stream: TcpStream) {
             }
             true => {
                 println!("waiting for the solution");
-                let mut buf = [0u8; 16];
+                let mut buf = [0u8; SOLUTION_SIZE];
                 stream.read_exact(&mut buf).unwrap();
                 let solution: PuzzleSolution = deserialize(&buf).unwrap();
                 println!("solution received");
@@ -31,14 +31,8 @@ fn handle_connection(mut stream: TcpStream) {
 
                 match result {
                     SolutionState::ACCEPTED => {
-                        let quote = serialize(&WordOfWisdomQuote::new(
-                            "This is my best quote (Albert Einstein)",
-                        ))
-                        .unwrap();
-                        // TODO: try to serialize usize as is
-                        stream
-                            .write_all(&serialize(&QuoteSize::new(quote.len())).unwrap())
-                            .unwrap();
+                        let quote = serialize(&"This is my best quote (Albert Einstein)").unwrap();
+                        stream.write_all(&serialize(&quote.len()).unwrap()).unwrap();
                         stream.write_all(&quote).unwrap();
                     }
                     SolutionState::REJECTED => {
