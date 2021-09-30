@@ -11,40 +11,54 @@ enum ClientState {
     PuzzleSent,
 }
 
-fn handle_connection(stream: TcpStream) -> Result<()> {
-    let mut client = Transport::new(stream.try_clone()?);
-    let mut client_state = ClientState::Initial;
-    let puzzle = Puzzle::default();
+struct Connection {
+    stream: TcpStream,
+    state: ClientState,
+}
 
-    loop {
-        match client_state {
-            ClientState::Initial => {
-                client.send(&puzzle)?;
-                println!("Puzzle sent");
-                client_state = ClientState::PuzzleSent;
-            },
-            ClientState::PuzzleSent => {
-                println!("Waiting for solution");
-                let solution = client.receive::<PuzzleSolution>(SOLUTION_SIZE)?;
-                println!("Solution received");
-
-                if puzzle.is_valid_solution(&solution) {
-                    println!("Solution accepted");
-                    client.send(&SolutionState::ACCEPTED)?;
-                    client
-                        .send_with_varsize(&String::from("This is my best quote (Albert Einstein)"))?;
-                } else {
-                    println!("Solution rejected");
-                }
-
-                stream.shutdown(Shutdown::Both)?;
-                println!("Connection closed");
-                break;
-            }
+impl Connection {
+    pub fn new(stream: TcpStream) -> Self {
+        Self {
+            stream,
+            state: ClientState::Initial,
         }
     }
 
-    Ok(())
+    pub fn handle(&mut self) -> Result<()> {
+        let mut client = Transport::new(self.stream.try_clone()?);
+        let puzzle = Puzzle::default();
+
+        loop {
+            match self.state {
+                ClientState::Initial => {
+                    client.send(&puzzle)?;
+                    println!("Puzzle sent");
+                    self.state = ClientState::PuzzleSent;
+                }
+                ClientState::PuzzleSent => {
+                    println!("Waiting for solution");
+                    let solution = client.receive::<PuzzleSolution>(SOLUTION_SIZE)?;
+                    println!("Solution received");
+
+                    if puzzle.is_valid_solution(&solution) {
+                        println!("Solution accepted");
+                        client.send(&SolutionState::ACCEPTED)?;
+                        client.send_with_varsize(&String::from(
+                            "This is my best quote (Albert Einstein)",
+                        ))?;
+                    } else {
+                        println!("Solution rejected");
+                    }
+
+                    self.stream.shutdown(Shutdown::Both)?;
+                    println!("Connection closed");
+                    break;
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 fn main() -> Result<()> {
@@ -55,9 +69,9 @@ fn main() -> Result<()> {
         match stream {
             Ok(stream) => {
                 println!("New TCP connection: {}", stream.peer_addr()?);
-
                 thread::spawn(move || {
-                    if let Err(e) = handle_connection(stream) {
+                    let mut conn = Connection::new(stream);
+                    if let Err(e) = conn.handle() {
                         eprintln!("Connection error: {}", e);
                     }
                 });
