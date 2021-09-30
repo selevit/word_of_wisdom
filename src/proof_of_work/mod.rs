@@ -3,7 +3,20 @@ use proto::{Puzzle, PuzzleSolution, SolutionState};
 use rand::Rng;
 use sha2::{Digest, Sha256};
 
+pub const DEFAULT_COMPLEXITY: u8 = 4;
+
+impl Default for Puzzle {
+    fn default() -> Self {
+        Self::new(DEFAULT_COMPLEXITY)
+    }
+}
+
 impl Puzzle {
+    pub fn new(complexity: u8) -> Self {
+        let value = rand::thread_rng().gen::<[u8; 16]>();
+        Puzzle { complexity, value }
+    }
+
     pub fn verify(&self, solution: &PuzzleSolution) -> SolutionState {
         let mut hasher = Sha256::new();
         hasher.update(self.value);

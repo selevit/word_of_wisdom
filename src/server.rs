@@ -7,11 +7,9 @@ use std::io::Write;
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::thread;
 
-const PUZZLE_COMPLEXITY: u8 = 3;
-
 fn handle_connection(mut stream: TcpStream) {
     let mut challenge_sent = false;
-    let puzzle = Puzzle::new(PUZZLE_COMPLEXITY);
+    let puzzle = Puzzle::default();
     let serialized_puzzle = serialize(&puzzle).unwrap();
 
     loop {

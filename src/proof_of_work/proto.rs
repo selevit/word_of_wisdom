@@ -1,4 +1,3 @@
-use rand::Rng;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -7,15 +6,20 @@ pub struct Puzzle {
     pub value: [u8; 16],
 }
 
-impl Puzzle {
-    pub fn new(complexity: u8) -> Self {
-        let value = rand::thread_rng().gen::<[u8; 16]>();
-        Puzzle { complexity, value }
-    }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct PuzzleSolution([u8; 16]);
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub enum SolutionState {
+    ACCEPTED,
+    REJECTED,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct PuzzleSolution([u8; 16]);
+pub struct QuoteSize(usize);
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct WordOfWisdomQuote(String);
 
 impl PuzzleSolution {
     pub fn new(s: [u8; 16]) -> Self {
@@ -27,15 +31,6 @@ impl PuzzleSolution {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub enum SolutionState {
-    ACCEPTED,
-    REJECTED,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct QuoteSize(usize);
-
 impl QuoteSize {
     pub fn new(s: usize) -> Self {
         Self(s)
@@ -45,9 +40,6 @@ impl QuoteSize {
         self.0
     }
 }
-
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct WordOfWisdomQuote(String);
 
 impl WordOfWisdomQuote {
     pub fn new(s: &str) -> Self {
