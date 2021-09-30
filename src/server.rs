@@ -39,7 +39,7 @@ fn handle_connection(stream: TcpStream) -> Result<()> {
     Ok(())
 }
 
-fn main() -> anyhow::Result<()> {
+fn main() -> Result<()> {
     let listener = TcpListener::bind("0.0.0.0:4444")?;
     println!("Listening on port 4444");
 

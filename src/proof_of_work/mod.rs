@@ -1,4 +1,5 @@
 pub mod proto;
+use anyhow::Result;
 pub use proto::PUZZLE_SIZE;
 use proto::{Puzzle, PuzzleSolution};
 use rand::Rng;
@@ -77,7 +78,7 @@ where
         Self { c }
     }
 
-    pub fn send<V>(&mut self, value: &V) -> anyhow::Result<()>
+    pub fn send<V>(&mut self, value: &V) -> Result<()>
     where
         V: Serialize,
     {
@@ -85,7 +86,7 @@ where
         Ok(())
     }
 
-    pub fn send_with_varsize<V>(&mut self, value: &V) -> anyhow::Result<()>
+    pub fn send_with_varsize<V>(&mut self, value: &V) -> Result<()>
     where
         V: Serialize,
     {
@@ -96,7 +97,7 @@ where
         Ok(())
     }
 
-    pub fn receive<R>(&mut self, size: usize) -> anyhow::Result<R>
+    pub fn receive<R>(&mut self, size: usize) -> Result<R>
     where
         R: DeserializeOwned,
     {
