@@ -28,7 +28,7 @@ impl PuzzleSolution {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub enum SolutionResponse {
+pub enum SolutionState {
     ACCEPTED,
     REJECTED,
 }

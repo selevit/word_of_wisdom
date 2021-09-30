@@ -1,7 +1,7 @@
 pub mod proof_of_work;
-use proof_of_work::proto;
+use proof_of_work::proto::{Puzzle, PuzzleSolution, QuoteSize, SolutionState, WordOfWisdomQuote};
 
-use proof_of_work::verify_challenge;
+use bincode::{deserialize, serialize};
 use std::io::prelude::*;
 use std::io::Write;
 use std::net::{Shutdown, TcpListener, TcpStream};
@@ -11,8 +11,8 @@ const PUZZLE_COMPLEXITY: u8 = 3;
 
 fn handle_connection(mut stream: TcpStream) {
     let mut challenge_sent = false;
-    let puzzle = proto::Puzzle::new(PUZZLE_COMPLEXITY);
-    let serialized_puzzle = bincode::serialize(&puzzle).unwrap();
+    let puzzle = Puzzle::new(PUZZLE_COMPLEXITY);
+    let serialized_puzzle = serialize(&puzzle).unwrap();
 
     loop {
         match challenge_sent {
@@ -22,32 +22,30 @@ fn handle_connection(mut stream: TcpStream) {
                 challenge_sent = true;
             }
             true => {
-                let mut buf = [0u8; 16];
                 println!("waiting for the solution");
+                let mut buf = [0u8; 16];
                 stream.read_exact(&mut buf).unwrap();
-                let solution: proto::PuzzleSolution = bincode::deserialize(&buf).unwrap();
+                let solution: PuzzleSolution = deserialize(&buf).unwrap();
                 println!("solution received");
 
-                let solution_response: proto::SolutionResponse;
-                if verify_challenge(&puzzle, &solution) {
-                    println!("solution accepted");
-                    solution_response = proto::SolutionResponse::ACCEPTED;
-                } else {
-                    println!("solution rejected");
-                    solution_response = proto::SolutionResponse::REJECTED;
-                }
+                let result = puzzle.verify(&solution);
+                let _ = stream.write_all(&serialize(&result).unwrap());
 
-                let serialized_solution_response = bincode::serialize(&solution_response).unwrap();
-                let _ = stream.write_all(&serialized_solution_response);
-
-                if solution_response == proto::SolutionResponse::ACCEPTED {
-                    let quote =
-                        proto::WordOfWisdomQuote::new("This is my best quote (Albert Einstein)");
-                    let serialized_quote = bincode::serialize(&quote).unwrap();
-                    let quote_size = proto::QuoteSize::new(serialized_quote.len());
-                    let serialized_quote_size = bincode::serialize(&quote_size).unwrap();
-                    stream.write_all(&serialized_quote_size).unwrap();
-                    stream.write_all(&serialized_quote).unwrap();
+                match result {
+                    SolutionState::ACCEPTED => {
+                        let quote = serialize(&WordOfWisdomQuote::new(
+                            "This is my best quote (Albert Einstein)",
+                        ))
+                        .unwrap();
+                        // TODO: try to serialize usize as is
+                        stream
+                            .write_all(&serialize(&QuoteSize::new(quote.len())).unwrap())
+                            .unwrap();
+                        stream.write_all(&quote).unwrap();
+                    }
+                    SolutionState::REJECTED => {
+                        println!("solution rejected");
+                    }
                 }
 
                 let _ = stream.shutdown(Shutdown::Both);

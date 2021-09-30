@@ -1,24 +1,10 @@
 pub mod proof_of_work;
 use bincode::{deserialize, serialize};
-use proof_of_work::proto::{
-    Puzzle, PuzzleSolution, QuoteSize, SolutionResponse, WordOfWisdomQuote,
-};
-use proof_of_work::verify_challenge;
-use rand::Rng;
+use proof_of_work::proto::{Puzzle, QuoteSize, SolutionState, WordOfWisdomQuote};
 use std::io::prelude::*;
 use std::io::Write;
 use std::mem::size_of;
 use std::net::TcpStream;
-
-fn solve_challenge(puzzle: &Puzzle) -> PuzzleSolution {
-    loop {
-        let solution = rand::thread_rng().gen::<[u8; 16]>();
-        let solution = PuzzleSolution::new(solution);
-        if verify_challenge(puzzle, &solution) {
-            return solution;
-        }
-    }
-}
 
 fn main() -> std::io::Result<()> {
     let mut stream = TcpStream::connect("127.0.0.1:4444")?;
@@ -29,26 +15,25 @@ fn main() -> std::io::Result<()> {
     let puzzle: Puzzle = deserialize(&buf).unwrap();
 
     println!("puzzle received (complexity: {})", puzzle.complexity);
-    println!("solving...");
 
     // solving puzzle
-    let solution = solve_challenge(&puzzle);
+    println!("solving...");
+    let solution = puzzle.solve();
     println!("puzzle solved");
 
     // sending solution
-    let serialized_solution = serialize(&solution).unwrap();
-    stream.write_all(&serialized_solution[..])?;
+    stream.write_all(&serialize(&solution).unwrap())?;
 
     // receiving solution result
     let mut buf = [0u8; 4];
     stream.read_exact(&mut buf)?;
-    let solution_response: SolutionResponse = deserialize(&buf).unwrap();
+    let solution_response: SolutionState = deserialize(&buf).unwrap();
 
     match solution_response {
-        SolutionResponse::REJECTED => {
+        SolutionState::REJECTED => {
             println!("solution rejected");
         }
-        SolutionResponse::ACCEPTED => {
+        SolutionState::ACCEPTED => {
             println!("solution accepted");
 
             // receiving response size
