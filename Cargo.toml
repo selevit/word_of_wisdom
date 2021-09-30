@@ -18,4 +18,5 @@ sha2 = "*"
 rand = "*"
 anyhow = "*"
 serde = { version = "*", features = ["derive"] }
+serde-error = "*"
 bincode = "*"

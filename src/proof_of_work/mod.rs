@@ -2,7 +2,10 @@ pub mod proto;
 pub use proto::PUZZLE_SIZE;
 use proto::{Puzzle, PuzzleSolution};
 use rand::Rng;
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use sha2::{Digest, Sha256};
+use std::io::{Read, Write};
 
 pub const DEFAULT_COMPLEXITY: u8 = 3;
 
@@ -59,5 +62,47 @@ impl Puzzle {
                 };
             }
         }
+    }
+}
+
+pub struct Transport<T: Read + Write> {
+    c: T,
+}
+
+impl<T> Transport<T>
+where
+    T: Read + Write,
+{
+    pub fn new(c: T) -> Self {
+        Self { c }
+    }
+
+    pub fn send<V>(&mut self, value: &V) -> anyhow::Result<()>
+    where
+        V: Serialize,
+    {
+        self.c.write_all(&bincode::serialize(value)?)?;
+        Ok(())
+    }
+
+    pub fn send_with_varsize<V>(&mut self, value: &V) -> anyhow::Result<()>
+    where
+        V: Serialize,
+    {
+        let data = bincode::serialize(value)?;
+        let len = bincode::serialize(&data.len())?;
+        self.c.write_all(&len)?;
+        self.c.write_all(&data)?;
+        Ok(())
+    }
+
+    pub fn receive<R>(&mut self, size: usize) -> anyhow::Result<R>
+    where
+        R: DeserializeOwned,
+    {
+        let mut buf: Vec<u8> = vec![0; size];
+        self.c.read_exact(&mut buf)?;
+        let result: R = bincode::deserialize(&buf)?;
+        Ok(result)
     }
 }

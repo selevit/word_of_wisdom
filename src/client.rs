@@ -1,20 +1,15 @@
 pub mod proof_of_work;
 use anyhow::Result;
-use bincode::{deserialize, serialize};
 use proof_of_work::proto::{Puzzle, SolutionState, SOLUTION_STATE_SIZE};
-use std::io::prelude::*;
-use std::io::Write;
+use proof_of_work::Transport;
 use std::mem::size_of;
 use std::net::TcpStream;
 
 fn main() -> Result<()> {
-    let mut stream = TcpStream::connect("127.0.0.1:4444")?;
+    let mut server = Transport::new(TcpStream::connect("127.0.0.1:4444")?);
 
     // receiving puzzle
-    let mut buf = [0u8; size_of::<Puzzle>()];
-    stream.read_exact(&mut buf)?;
-    let puzzle: Puzzle = deserialize(&buf)?;
-
+    let puzzle = server.receive::<Puzzle>(size_of::<Puzzle>())?;
     println!("Puzzle received (complexity: {})", puzzle.complexity);
 
     // solving puzzle
@@ -23,30 +18,19 @@ fn main() -> Result<()> {
     println!("Puzzle solved with {} attempts", result.hashes_tried);
 
     // sending solution
-    stream.write_all(&serialize(&result.solution)?)?;
+    server.send(&result.solution)?;
 
-    // receiving solution result
-    let mut buf = [0u8; SOLUTION_STATE_SIZE];
-    stream.read_exact(&mut buf)?;
-    let solution_state: SolutionState = deserialize(&buf)?;
-
-    match solution_state {
-        SolutionState::REJECTED => {
-            println!("Solution rejected");
-        }
+    // checking solution result
+    match server.receive::<SolutionState>(SOLUTION_STATE_SIZE)? {
         SolutionState::ACCEPTED => {
             println!("Solution accepted");
-
             // receiving response size
-            let mut buf = [0u8; size_of::<usize>()];
-            stream.read_exact(&mut buf)?;
-            let quote_size: usize = deserialize(&buf)?;
-
-            // receving response
-            let mut buf: Vec<u8> = vec![0; quote_size];
-            stream.read_exact(&mut buf)?;
-            let quote: &str = deserialize(&buf)?;
-            println!("\n> \n> {} \n> ", quote);
+            let server_msg_size = server.receive::<usize>(size_of::<usize>())?;
+            let server_msg = server.receive::<String>(server_msg_size)?;
+            println!("\n> \n> {} \n> ", server_msg);
+        }
+        SolutionState::REJECTED => {
+            eprintln!("Solution rejected");
         }
     }
 

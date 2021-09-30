@@ -157,6 +157,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-error"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e988182713aeed6a619a88bca186f6d6407483485ffe44c869ee264f8eabd13f"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "serde_derive"
 version = "1.0.130"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -223,5 +232,6 @@ dependencies = [
  "bincode",
  "rand",
  "serde",
+ "serde-error",
  "sha2",
 ]
