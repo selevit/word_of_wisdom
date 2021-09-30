@@ -1,5 +1,6 @@
 pub mod proof_of_work;
 use proof_of_work::proto::{Puzzle, PuzzleSolution, SolutionState, SOLUTION_SIZE};
+use proof_of_work::PuzzleSolver;
 
 use anyhow::Result;
 use proof_of_work::Transport;
@@ -27,6 +28,7 @@ impl Connection {
     pub fn handle(&mut self) -> Result<()> {
         let mut client = Transport::new(self.stream.try_clone()?);
         let puzzle = Puzzle::default();
+        let solver = PuzzleSolver::new(&puzzle);
 
         loop {
             match self.state {
@@ -40,7 +42,7 @@ impl Connection {
                     let solution = client.receive::<PuzzleSolution>(SOLUTION_SIZE)?;
                     println!("Solution received");
 
-                    if puzzle.is_valid_solution(&solution) {
+                    if solver.is_valid_solution(&solution) {
                         println!("Solution accepted");
                         client.send(&SolutionState::ACCEPTED)?;
                         client.send_with_varsize(&String::from(

@@ -1,7 +1,7 @@
 pub mod proof_of_work;
 use anyhow::Result;
 use proof_of_work::proto::{Puzzle, SolutionState, SOLUTION_STATE_SIZE};
-use proof_of_work::Transport;
+use proof_of_work::{PuzzleSolver, Transport};
 use std::mem::size_of;
 use std::net::TcpStream;
 
@@ -12,7 +12,8 @@ fn main() -> Result<()> {
     println!("Puzzle received (complexity: {})", puzzle.complexity);
 
     println!("Solving...");
-    let result = puzzle.solve();
+    let solver = PuzzleSolver::new(&puzzle); // precomputes a hash to increase the performance
+    let result = solver.solve();
     println!("Puzzle solved with {} attempts", result.hashes_tried);
 
     server.send(&result.solution)?;

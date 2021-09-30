@@ -10,10 +10,10 @@ use std::io::{Read, Write};
 
 pub const DEFAULT_COMPLEXITY: u8 = 3;
 
-impl Default for Puzzle {
-    fn default() -> Self {
-        Self::new(DEFAULT_COMPLEXITY)
-    }
+// A separate solver structure is needed in order not to blow the protocol structures.
+pub struct PuzzleSolver<'a> {
+    puzzle: &'a Puzzle,
+    precomputed_hash: Sha256,
 }
 
 pub struct SolvingResult {
@@ -21,20 +21,24 @@ pub struct SolvingResult {
     pub hashes_tried: u128,
 }
 
-impl Puzzle {
-    pub fn new(complexity: u8) -> Self {
-        let value = rand::thread_rng().gen::<[u8; PUZZLE_SIZE]>();
-        Puzzle { complexity, value }
+impl<'a> PuzzleSolver<'a> {
+    pub fn new(puzzle: &'a Puzzle) -> Self {
+        let mut precomputed_hash = Sha256::new();
+        precomputed_hash.update(puzzle.value);
+        Self {
+            puzzle,
+            precomputed_hash,
+        }
     }
 
     pub fn is_valid_solution(&self, solution: &PuzzleSolution) -> bool {
-        let mut hasher = Sha256::new();
-        hasher.update(self.value);
+        let mut hasher = self.precomputed_hash.clone();
         hasher.update(solution);
 
         let result = hasher.finalize();
         let mut leading_zeros = 0;
-        for c in result.iter().take(self.complexity as usize / 2 + 1) {
+
+        for c in result.iter().take(self.puzzle.complexity as usize / 2 + 1) {
             if c >> 4 == 0 {
                 leading_zeros += 1;
             } else {
@@ -48,7 +52,7 @@ impl Puzzle {
         }
         println!("hash: {:x}, leading zeros: {:?}", result, leading_zeros);
 
-        leading_zeros >= self.complexity
+        leading_zeros >= self.puzzle.complexity
     }
 
     pub fn solve(&self) -> SolvingResult {
@@ -63,6 +67,19 @@ impl Puzzle {
                 };
             }
         }
+    }
+}
+
+impl Puzzle {
+    pub fn new(complexity: u8) -> Self {
+        let value = rand::thread_rng().gen::<[u8; PUZZLE_SIZE]>();
+        Puzzle { complexity, value }
+    }
+}
+
+impl Default for Puzzle {
+    fn default() -> Self {
+        Self::new(DEFAULT_COMPLEXITY)
     }
 }
 
