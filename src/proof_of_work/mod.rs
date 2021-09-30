@@ -44,7 +44,7 @@ impl Puzzle {
         }
         println!("hash: {:x}, leading zeros: {:?}", result, leading_zeros);
 
-        return leading_zeros >= self.complexity;
+        leading_zeros >= self.complexity
     }
 
     pub fn solve(&self) -> SolvingResult {

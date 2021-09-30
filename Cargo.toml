@@ -16,5 +16,6 @@ path = "src/client.rs"
 [dependencies]
 sha2 = "*"
 rand = "*"
+anyhow = "*"
 serde = { version = "*", features = ["derive"] }
 bincode = "*"
