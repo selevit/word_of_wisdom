@@ -1,46 +1,59 @@
 pub mod proof_of_work;
+use proof_of_work::proto;
 
 use proof_of_work::verify_challenge;
-use rand::Rng;
-use std::io::BufRead;
-use std::io::BufReader;
+use std::io::prelude::*;
 use std::io::Write;
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::thread;
 
 const PUZZLE_COMPLEXITY: u8 = 3;
-const CHALLENGE_SIZE: usize = 32;
 
 fn handle_connection(mut stream: TcpStream) {
     let mut challenge_sent = false;
-    let challenge = rand::thread_rng().gen::<[u8; CHALLENGE_SIZE]>();
+    let puzzle = proto::Puzzle::new(PUZZLE_COMPLEXITY);
+    let serialized_puzzle = bincode::serialize(&puzzle).unwrap();
 
     loop {
-        if !challenge_sent {
-            stream
-                .write_all(format!("{}\n", PUZZLE_COMPLEXITY).as_bytes())
-                .unwrap();
-            stream.write_all(&challenge[..]).unwrap();
-            stream.write_all(b"\n").unwrap();
-            println!("challenge sent");
-            challenge_sent = true;
-        } else {
-            let mut reader = BufReader::new(stream.try_clone().unwrap());
-            let mut solution: Vec<u8> = vec![];
-            println!("waiting for the solution");
-            let read_bytes = reader.read_until(b'\n', &mut solution).unwrap();
-            let solution = &solution[..solution.len() - 1];
-            println!("solution received: {:?}", solution);
-            if read_bytes > 0 && verify_challenge(PUZZLE_COMPLEXITY, &challenge[..], solution) {
-                println!("solution accepted");
-                let _ = stream.write_all(b"This is my best quote (Albert Einstein)\n");
-            } else {
-                println!("solution rejected");
-                let _ = stream.write_all(b"Invalid solution\n");
+        match challenge_sent {
+            false => {
+                stream.write_all(&serialized_puzzle).unwrap();
+                println!("challenge sent");
+                challenge_sent = true;
             }
-            println!("connection closed\n");
-            let _ = stream.shutdown(Shutdown::Both);
-            break;
+            true => {
+                let mut buf = [0u8; 16];
+                println!("waiting for the solution");
+                stream.read_exact(&mut buf).unwrap();
+                let solution: proto::PuzzleSolution = bincode::deserialize(&buf).unwrap();
+                println!("solution received");
+
+                let solution_response: proto::SolutionResponse;
+                if verify_challenge(&puzzle, &solution) {
+                    println!("solution accepted");
+                    solution_response = proto::SolutionResponse::ACCEPTED;
+                } else {
+                    println!("solution rejected");
+                    solution_response = proto::SolutionResponse::REJECTED;
+                }
+
+                let serialized_solution_response = bincode::serialize(&solution_response).unwrap();
+                let _ = stream.write_all(&serialized_solution_response);
+
+                if solution_response == proto::SolutionResponse::ACCEPTED {
+                    let quote =
+                        proto::WordOfWisdomQuote::new("This is my best quote (Albert Einstein)");
+                    let serialized_quote = bincode::serialize(&quote).unwrap();
+                    let quote_size = proto::QuoteSize::new(serialized_quote.len());
+                    let serialized_quote_size = bincode::serialize(&quote_size).unwrap();
+                    stream.write_all(&serialized_quote_size).unwrap();
+                    stream.write_all(&serialized_quote).unwrap();
+                }
+
+                let _ = stream.shutdown(Shutdown::Both);
+                println!("connection closed");
+                break;
+            }
         }
     }
 }
@@ -52,7 +65,7 @@ fn main() {
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
-                println!("New tcp connection: {}", stream.peer_addr().unwrap());
+                println!("New TCP connection: {}", stream.peer_addr().unwrap());
                 thread::spawn(move || {
                     handle_connection(stream);
                 });
