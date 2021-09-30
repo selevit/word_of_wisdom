@@ -1,6 +1,6 @@
 pub mod proto;
 pub use proto::PUZZLE_SIZE;
-use proto::{Puzzle, PuzzleSolution, SolutionState};
+use proto::{Puzzle, PuzzleSolution};
 use rand::Rng;
 use sha2::{Digest, Sha256};
 
@@ -12,13 +12,18 @@ impl Default for Puzzle {
     }
 }
 
+pub struct SolvingResult {
+    pub solution: PuzzleSolution,
+    pub hashes_tried: u128,
+}
+
 impl Puzzle {
     pub fn new(complexity: u8) -> Self {
         let value = rand::thread_rng().gen::<[u8; PUZZLE_SIZE]>();
         Puzzle { complexity, value }
     }
 
-    pub fn verify(&self, solution: &PuzzleSolution) -> SolutionState {
+    pub fn is_valid_solution(&self, solution: &PuzzleSolution) -> bool {
         let mut hasher = Sha256::new();
         hasher.update(self.value);
         hasher.update(solution);
@@ -39,18 +44,19 @@ impl Puzzle {
         }
         println!("hash: {:x}, leading zeros: {:?}", result, leading_zeros);
 
-        if leading_zeros >= self.complexity {
-            SolutionState::ACCEPTED
-        } else {
-            SolutionState::REJECTED
-        }
+        return leading_zeros >= self.complexity;
     }
 
-    pub fn solve(&self) -> PuzzleSolution {
+    pub fn solve(&self) -> SolvingResult {
+        let mut hashes_tried: u128 = 0;
         loop {
             let solution = rand::thread_rng().gen::<PuzzleSolution>();
-            if self.verify(&solution) == SolutionState::ACCEPTED {
-                return solution;
+            hashes_tried += 1;
+            if self.is_valid_solution(&solution) {
+                return SolvingResult {
+                    solution,
+                    hashes_tried,
+                };
             }
         }
     }

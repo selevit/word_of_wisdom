@@ -18,18 +18,18 @@ fn main() -> std::io::Result<()> {
 
     // solving puzzle
     println!("solving...");
-    let solution = puzzle.solve();
-    println!("puzzle solved");
+    let result = puzzle.solve();
+    println!("puzzle solved with {} attempts", result.hashes_tried);
 
     // sending solution
-    stream.write_all(&serialize(&solution).unwrap())?;
+    stream.write_all(&serialize(&result.solution).unwrap())?;
 
     // receiving solution result
     let mut buf = [0u8; SOLUTION_STATE_SIZE];
     stream.read_exact(&mut buf)?;
-    let solution_response: SolutionState = deserialize(&buf).unwrap();
+    let solution_state: SolutionState = deserialize(&buf).unwrap();
 
-    match solution_response {
+    match solution_state {
         SolutionState::REJECTED => {
             println!("solution rejected");
         }

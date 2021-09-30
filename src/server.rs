@@ -26,18 +26,16 @@ fn handle_connection(mut stream: TcpStream) {
                 let solution: PuzzleSolution = deserialize(&buf).unwrap();
                 println!("solution received");
 
-                let result = puzzle.verify(&solution);
-                let _ = stream.write_all(&serialize(&result).unwrap());
-
-                match result {
-                    SolutionState::ACCEPTED => {
-                        let quote = serialize(&"This is my best quote (Albert Einstein)").unwrap();
-                        stream.write_all(&serialize(&quote.len()).unwrap()).unwrap();
-                        stream.write_all(&quote).unwrap();
-                    }
-                    SolutionState::REJECTED => {
-                        println!("solution rejected");
-                    }
+                if puzzle.is_valid_solution(&solution) {
+                    println!("solution accepted");
+                    let quote = serialize(&"This is my best quote (Albert Einstein)").unwrap();
+                    stream
+                        .write_all(&serialize(&SolutionState::ACCEPTED).unwrap())
+                        .unwrap();
+                    stream.write_all(&serialize(&quote.len()).unwrap()).unwrap();
+                    stream.write_all(&quote).unwrap();
+                } else {
+                    println!("solution rejected");
                 }
 
                 let _ = stream.shutdown(Shutdown::Both);
