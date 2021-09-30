@@ -6,33 +6,41 @@ use proof_of_work::Transport;
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::thread;
 
+enum ClientState {
+    Initial,
+    PuzzleSent,
+}
+
 fn handle_connection(stream: TcpStream) -> Result<()> {
     let mut client = Transport::new(stream.try_clone()?);
+    let mut client_state = ClientState::Initial;
     let puzzle = Puzzle::default();
-    let mut puzzle_sent = false;
 
     loop {
-        if !puzzle_sent {
-            client.send(&puzzle)?;
-            println!("Puzzle sent");
-            puzzle_sent = true;
-        } else {
-            println!("Waiting for solution");
-            let solution = client.receive::<PuzzleSolution>(SOLUTION_SIZE)?;
-            println!("Solution received");
+        match client_state {
+            ClientState::Initial => {
+                client.send(&puzzle)?;
+                println!("Puzzle sent");
+                client_state = ClientState::PuzzleSent;
+            },
+            ClientState::PuzzleSent => {
+                println!("Waiting for solution");
+                let solution = client.receive::<PuzzleSolution>(SOLUTION_SIZE)?;
+                println!("Solution received");
 
-            if puzzle.is_valid_solution(&solution) {
-                println!("Solution accepted");
-                client.send(&SolutionState::ACCEPTED)?;
-                client
-                    .send_with_varsize(&String::from("This is my best quote (Albert Einstein)"))?;
-            } else {
-                println!("Solution rejected");
+                if puzzle.is_valid_solution(&solution) {
+                    println!("Solution accepted");
+                    client.send(&SolutionState::ACCEPTED)?;
+                    client
+                        .send_with_varsize(&String::from("This is my best quote (Albert Einstein)"))?;
+                } else {
+                    println!("Solution rejected");
+                }
+
+                stream.shutdown(Shutdown::Both)?;
+                println!("Connection closed");
+                break;
             }
-
-            stream.shutdown(Shutdown::Both)?;
-            println!("Connection closed");
-            break;
         }
     }
 
