@@ -22,7 +22,7 @@ fn main() -> Result<()> {
             println!("Solution accepted");
             let server_msg_size = server.receive::<usize>(size_of::<usize>())?;
             let server_msg = server.receive::<String>(server_msg_size)?;
-            println!("\n> \n> {} \n> ", server_msg);
+            println!("\n{}", server_msg);
         }
         SolutionState::REJECTED => {
             eprintln!("Solution rejected");

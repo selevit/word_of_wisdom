@@ -8,7 +8,7 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::io::{Read, Write};
 
-pub const DEFAULT_COMPLEXITY: u8 = 4;
+pub const DEFAULT_COMPLEXITY: u8 = 3;
 
 // A separate solver structure is needed in order not to blow the protocol structures.
 pub struct PuzzleSolver<'a> {
@@ -50,7 +50,6 @@ impl<'a> PuzzleSolver<'a> {
                 break;
             }
         }
-        println!("hash: {:x}, leading zeros: {:?}", result, leading_zeros);
 
         leading_zeros >= self.puzzle.complexity
     }

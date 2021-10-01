@@ -8,4 +8,4 @@ set +e
 echo "Running TCP client"
 trap "kill $server_pid" SIGINT
 ./target/release/client
-wait $server_pid
+kill $server_pid
