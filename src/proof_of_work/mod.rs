@@ -128,7 +128,12 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bincode::{deserialize, serialize};
+    use mockstream::SharedMockStream;
+    use proto::SolutionState;
     use proto::SOLUTION_SIZE;
+    use proto::SOLUTION_STATE_SIZE;
+    use std::mem::size_of;
 
     #[test]
     fn test_puzzle_new() {
@@ -163,5 +168,50 @@ mod tests {
         hasher.update(result.solution);
         let hash_hex = format!("{:x}", hasher.finalize());
         assert!(hash_hex.starts_with("000"));
+    }
+
+    #[test]
+    fn test_transport_send_receive() {
+        let mut mock_stream = SharedMockStream::new();
+        let mut transport = Transport::<SharedMockStream>::new(mock_stream.clone());
+
+        transport.send(&SolutionState::ACCEPTED).unwrap();
+        let received = mock_stream.pop_bytes_written();
+        assert_eq!(received.len(), SOLUTION_STATE_SIZE);
+        assert_eq!(received, serialize(&SolutionState::ACCEPTED).unwrap());
+
+        let puzzle = Puzzle::default();
+        transport.send(&puzzle).unwrap();
+        let received = mock_stream.pop_bytes_written();
+        assert_eq!(received.len(), size_of::<Puzzle>());
+        assert_eq!(received, serialize(&puzzle).unwrap());
+    }
+
+    #[test]
+    fn test_transport_send_with_varsize() {
+        let mut mock_stream = SharedMockStream::new();
+        let mut transport = Transport::<SharedMockStream>::new(mock_stream.clone());
+        let sent_message = String::from("hello, world");
+
+        transport.send_with_varsize(&sent_message).unwrap();
+        let received_data = mock_stream.pop_bytes_written();
+        let size: usize = deserialize(&received_data[..size_of::<usize>()]).unwrap();
+        assert_eq!(size, serialize(&sent_message).unwrap().len());
+
+        let received_message: String = deserialize(&received_data[size_of::<usize>()..]).unwrap();
+        assert_eq!(sent_message, received_message);
+    }
+
+    #[test]
+    fn test_transport_receive() {
+        let mut mock_stream = SharedMockStream::new();
+        let mut transport = Transport::<SharedMockStream>::new(mock_stream.clone());
+
+        let sent_puzzle = Puzzle::default();
+        let bin_data = serialize(&sent_puzzle).unwrap();
+        mock_stream.push_bytes_to_read(&bin_data);
+
+        let received_puzzle = transport.receive::<Puzzle>(size_of::<Puzzle>()).unwrap();
+        assert_eq!(sent_puzzle, received_puzzle);
     }
 }
