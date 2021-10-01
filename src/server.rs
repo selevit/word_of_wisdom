@@ -53,7 +53,7 @@ impl Server {
         Ok(Server { responses })
     }
 
-    pub fn run(self) -> Result<(), Box<dyn Error + 'static>> {
+    pub fn run(self) -> Result<(), Box<dyn Error>> {
         Arc::new(self).run_listener()?;
         Ok(())
     }
@@ -97,7 +97,7 @@ impl Server {
         self.responses.choose(&mut rand::thread_rng()).unwrap()
     }
 
-    fn run_listener(self: Arc<Self>) -> Result<(), Box<dyn Error + 'static>> {
+    fn run_listener(self: Arc<Self>) -> Result<(), Box<dyn Error>> {
         let listener = TcpListener::bind("0.0.0.0:4444")?;
         println!("Listening on port 4444");
 
