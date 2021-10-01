@@ -124,3 +124,44 @@ where
         Ok(result)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proto::SOLUTION_SIZE;
+
+    #[test]
+    fn test_puzzle_new() {
+        let p = Puzzle::new(5);
+        assert_eq!(p.complexity, 5);
+        assert_ne!(p.value, [0u8; PUZZLE_SIZE]);
+    }
+
+    #[test]
+    fn test_puzzle_default() {
+        let p = Puzzle::default();
+        assert_eq!(p.complexity, DEFAULT_COMPLEXITY);
+        assert_ne!(p.value, [0u8; PUZZLE_SIZE]);
+    }
+
+    #[test]
+    fn test_is_not_valid_solution() {
+        let puzzle = Puzzle::new(30);
+        let solver = PuzzleSolver::new(&puzzle);
+        assert_eq!(solver.is_valid_solution(&[0u8; SOLUTION_SIZE]), false);
+    }
+
+    #[test]
+    fn test_puzzle_solve() {
+        let puzzle = Puzzle::new(3);
+        let solver = PuzzleSolver::new(&puzzle);
+        let result = solver.solve();
+        assert!(result.hashes_tried > 0);
+        assert!(solver.is_valid_solution(&result.solution));
+        let mut hasher = Sha256::default();
+        hasher.update(puzzle.value);
+        hasher.update(result.solution);
+        let hash_hex = format!("{:x}", hasher.finalize());
+        assert!(hash_hex.starts_with("000"));
+    }
+}
