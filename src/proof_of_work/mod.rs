@@ -171,7 +171,7 @@ mod tests {
     }
 
     #[test]
-    fn test_transport_send_receive() {
+    fn test_transport_send() {
         let mut mock_stream = SharedMockStream::new();
         let mut transport = Transport::<SharedMockStream>::new(mock_stream.clone());
 
