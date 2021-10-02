@@ -19,6 +19,8 @@ rand = "*"
 anyhow = "*"
 serde = { version = "*", features = ["derive"] }
 bincode = "*"
+log = "*"
+env_logger = "*"
 
 [dev-dependencies]
 mockstream = "*"

@@ -3,6 +3,7 @@ use proof_of_work::proto::{Puzzle, PuzzleSolution, SolutionState, SOLUTION_SIZE}
 use proof_of_work::PuzzleSolver;
 
 use anyhow::Result;
+use env_logger::Env;
 use proof_of_work::Transport;
 use rand::seq::SliceRandom;
 use std::error::Error;
@@ -45,7 +46,7 @@ impl Server {
         if responses.is_empty() {
             return Err(format!("file is empty: {}", filename).into());
         }
-        println!(
+        log::info!(
             "Loaded {} response phrases from {}",
             responses.len(),
             filename
@@ -67,24 +68,24 @@ impl Server {
             match conn.state {
                 ClientState::Initial => {
                     client.send(&puzzle)?;
-                    println!("Puzzle sent");
+                    log::info!("Puzzle sent");
                     conn.state = ClientState::PuzzleSent;
                 }
                 ClientState::PuzzleSent => {
-                    println!("Waiting for solution");
-                    let solution = client.receive::<PuzzleSolution>(SOLUTION_SIZE)?;
-                    println!("Solution received");
+                    log::info!("Waiting for solution");
+                    let solution: PuzzleSolution = client.receive(SOLUTION_SIZE)?;
+                    log::info!("Solution received");
 
                     if solver.is_valid_solution(&solution) {
-                        println!("Solution accepted");
+                        log::info!("Solution accepted");
                         client.send(&SolutionState::ACCEPTED)?;
                         client.send_with_varsize(self.random_response())?;
                     } else {
-                        println!("Solution rejected");
+                        log::error!("Solution rejected");
                     }
 
                     conn.stream.shutdown(Shutdown::Both)?;
-                    println!("Connection closed");
+                    log::info!("Connection closed");
                     break;
                 }
             }
@@ -99,13 +100,13 @@ impl Server {
 
     fn run_listener(self: Arc<Self>) -> Result<(), Box<dyn Error>> {
         let listener = TcpListener::bind("0.0.0.0:4444")?;
-        println!("Listening on port 4444");
+        log::info!("Listening on port 4444");
 
         for stream in listener.incoming() {
             let server_clone = self.clone();
             match stream {
                 Ok(stream) => {
-                    println!("New TCP connection: {}", stream.peer_addr()?);
+                    log::info!("New TCP connection: {}", stream.peer_addr()?);
                     thread::spawn(move || {
                         let mut conn = Connection::new(stream);
                         if let Err(e) = server_clone.handle_connection(&mut conn) {
@@ -114,7 +115,7 @@ impl Server {
                     });
                 }
                 Err(e) => {
-                    eprintln!("Error establishing TCP connection: {}", e);
+                    log::error!("Error establishing TCP connection: {}", e);
                 }
             }
         }
@@ -126,6 +127,7 @@ impl Server {
 const RESPONSES_FILENAME: &str = "server_responses.txt";
 
 fn main() -> Result<(), Box<dyn Error>> {
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     let server = Server::new_from_file(RESPONSES_FILENAME)?;
     server.run()
 }
