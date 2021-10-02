@@ -402,7 +402,7 @@ mod tests {
         );
     }
 
-    fn wait_server_ready<'a>(addr: &'a str) {
+    fn wait_server_ready(addr: &str) {
         loop {
             if let Ok(c) = TcpStream::connect(addr) {
                 let _ = c.shutdown(Shutdown::Both);

@@ -1,6 +1,7 @@
 FROM rust:1.43 as builder
 
 COPY . .
+RUN cargo clippy
 RUN cargo test
 RUN cargo build --release
 
