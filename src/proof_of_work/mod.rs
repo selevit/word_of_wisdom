@@ -161,14 +161,11 @@ pub struct Server {
 impl<'a> Server {
     pub fn new_from_file(filename: &str) -> Result<Self, Box<dyn Error>> {
         let mut responses = Vec::<String>::new();
+        log::info!("Loading response phrases from {}", filename);
         for val in fs::read_to_string(filename)?.split("\n\n") {
             responses.push(val.trim_matches(&['\r', '\n', ' '][..]).into());
         }
-        log::info!(
-            "Loaded {} response phrases from {}",
-            responses.len(),
-            filename
-        );
+        log::info!("{} phrases loaded", responses.len(),);
         Self::new_with_responses(responses)
     }
 

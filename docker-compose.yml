@@ -1,0 +1,30 @@
+version: "3.9"
+
+x-default-env: &default-env
+  RUST_LOG: ${RUST_LOG:-info}
+
+x-defaults: &defaults
+  image: rust_pow_server
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"
+
+services:
+  server:
+    <<: *defaults
+    build: .
+    restart: on-failure
+    environment:
+      <<: *default-env
+
+  client:
+    <<: *defaults
+    depends_on:
+     - server
+    environment:
+      <<: *default-env
+      HOST: server
+    command: ["client"]
+    profiles:
+     - donotstart
