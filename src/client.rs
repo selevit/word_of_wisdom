@@ -8,8 +8,8 @@ use std::net::TcpStream;
 
 fn main() -> Result<()> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    let mut server = Transport::new(TcpStream::connect("127.0.0.1:4444")?);
 
+    let mut server = Transport::new(TcpStream::connect("127.0.0.1:4444")?);
     let puzzle: Puzzle = server.receive(size_of::<Puzzle>())?;
     log::info!("Puzzle received (complexity: {})", puzzle.complexity);
 
@@ -17,8 +17,8 @@ fn main() -> Result<()> {
     let solver = PuzzleSolver::new(&puzzle); // precomputes a hash to increase the performance
     let result = solver.solve();
     log::info!("Puzzle solved with {} attempts", result.hashes_tried);
-
     server.send(&result.solution)?;
+
     match server.receive::<SolutionState>(SOLUTION_STATE_SIZE)? {
         SolutionState::ACCEPTED => {
             log::info!("Solution accepted");
