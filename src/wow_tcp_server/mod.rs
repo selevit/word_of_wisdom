@@ -165,7 +165,7 @@ impl<'a> Server {
         for val in fs::read_to_string(filename)?.split("\n\n") {
             responses.push(val.trim_matches(&['\r', '\n', ' '][..]).into());
         }
-        log::info!("{} phrases loaded", responses.len(),);
+        log::info!("{} phrases loaded", responses.len());
         Self::new_with_responses(responses)
     }
 

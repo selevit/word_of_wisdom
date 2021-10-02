@@ -9,6 +9,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     let addr = server_addr_from_env();
     let responses_file =
         env::var("RESPONSES_FILENAME").unwrap_or_else(|_| "./server_responses.txt".into());
-    let server = Server::new_from_file(&responses_file)?;
+    let mut server = Server::new_from_file(&responses_file)?;
+    if let Ok(c) = env::var("PUZZLE_COMPLEXITY") {
+        let complexity = c
+            .parse::<u8>()
+            .expect("Cannot parse PUZZLE_COMPLEXITY (must be an integer from 1 to 10)");
+        if !(1..=10).contains(&complexity) {
+            return Err("PUZZLE_COMPLEXITY must be an integer from 1 to 10".into());
+        }
+        server.set_puzzle_complexity(complexity);
+    }
     server.run(addr.as_str())
 }
