@@ -11,11 +11,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         env::var("RESPONSES_FILENAME").unwrap_or_else(|_| "./server_responses.txt".into());
     let mut server = Server::new_from_file(&responses_file)?;
     if let Ok(c) = env::var("PUZZLE_COMPLEXITY") {
-        let complexity = c
-            .parse::<u8>()
-            .expect("Cannot parse PUZZLE_COMPLEXITY (must be an integer from 1 to 10)");
+        let err_msg = "PUZZLE_COMPLEXITY must be an integer from 1 to 10";
+        let complexity = c.parse::<u8>().expect(err_msg);
         if !(1..=10).contains(&complexity) {
-            return Err("PUZZLE_COMPLEXITY must be an integer from 1 to 10".into());
+            return Err(err_msg.into());
         }
         server.set_puzzle_complexity(complexity);
     }

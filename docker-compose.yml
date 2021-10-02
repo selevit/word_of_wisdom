@@ -17,6 +17,7 @@ services:
     restart: on-failure
     environment:
       <<: *default-env
+      PUZZLE_COMPLEXITY:
 
   client:
     <<: *defaults

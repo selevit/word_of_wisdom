@@ -7,10 +7,7 @@ Design and implement “Word of Wisdom” tcp server.
 - After Prof Of Work verification, the server should send one of the quotes from “Word of wisdom” book or any other collection of the quotes.
 - Docker file should be provided both for the server and for the client that solves the POW challenge
 
-
 ## How to run
-
-You can easily try how it works with docker:
 
 ```bash
 docker-compose up -d
@@ -22,3 +19,13 @@ Also, if you pass `RUST_LOG=debug` to the client, you will be able to see the ha
 ```
 RUST_LOG=debug docker-compose run client
 ```
+
+The server uses the [Hashcash](https://en.wikipedia.org/wiki/Hashcash) proof of work algorithm with default complexity equal to 4. Also, when running a server, you can set a custom puzzle complexity.
+
+```bash
+PUZZLE_COMPLEXITY=6 docker-compose up -d
+```
+
+## Why Hashcash?
+
+It uses a commonly known `sha256` hash function, which makes the client implementation very simple. Also this is the most known algorithm, because it's used in Bitcoin mining.
