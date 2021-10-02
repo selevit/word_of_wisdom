@@ -1,9 +1,8 @@
-pub mod proof_of_work;
 use anyhow::Result;
 use env_logger::Env;
-use proof_of_work::Client;
 use std::env;
 use std::error::Error;
+use word_of_wisdom::Client;
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();

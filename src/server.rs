@@ -1,8 +1,7 @@
-pub mod proof_of_work;
 use env_logger::Env;
-use proof_of_work::Server;
 use std::env;
 use std::error::Error;
+use word_of_wisdom::Server;
 
 // TODO: handle sigterm / sigint
 
