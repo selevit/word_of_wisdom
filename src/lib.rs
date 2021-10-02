@@ -10,5 +10,5 @@ pub fn setup_logging() {
 pub fn server_addr_from_env() -> String {
     let host = env::var("HOST").unwrap_or_else(|_| "127.0.0.1".into());
     let port = env::var("PORT").unwrap_or_else(|_| "4444".into());
-    format!("{}, {}", host, port)
+    format!("{}:{}", host, port)
 }
