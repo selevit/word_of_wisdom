@@ -1,6 +1,7 @@
 FROM rust:1.43 as builder
 
 COPY . .
+RUN cargo test
 RUN cargo build --release
 
 FROM debian:buster-slim

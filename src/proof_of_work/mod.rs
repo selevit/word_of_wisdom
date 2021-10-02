@@ -299,7 +299,9 @@ mod tests {
     use proto::SOLUTION_SIZE;
     use proto::SOLUTION_STATE_SIZE;
     use std::mem::size_of;
+    use std::time::Duration;
     use tempfile::NamedTempFile;
+    use thread::sleep;
 
     #[test]
     fn test_puzzle_new() {
@@ -400,6 +402,16 @@ mod tests {
         );
     }
 
+    fn wait_server_ready<'a>(addr: &'a str) {
+        loop {
+            if let Ok(c) = TcpStream::connect(addr) {
+                let _ = c.shutdown(Shutdown::Both);
+                break;
+            }
+            sleep(Duration::from_millis(100));
+        }
+    }
+
     #[test]
     fn test_client_and_server() {
         let addr = "127.0.0.1:4000";
@@ -412,6 +424,7 @@ mod tests {
         thread::spawn(move || {
             server.run(addr).unwrap();
         });
+        wait_server_ready(addr);
         let client = Client::new(addr);
         let response = client.get_response().unwrap();
         assert!(response == "response 1" || response == "response 2")
@@ -425,6 +438,7 @@ mod tests {
         thread::spawn(move || {
             server.run(addr).unwrap();
         });
+        wait_server_ready(addr);
         let mut transport = Transport::new(TcpStream::connect(addr).unwrap());
         transport.receive::<Puzzle>(size_of::<Puzzle>()).unwrap();
         transport.send(&[0u8; SOLUTION_SIZE]).unwrap();
