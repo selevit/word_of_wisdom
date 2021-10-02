@@ -162,26 +162,24 @@ impl<'a> Server {
     pub fn new_from_file(filename: &str) -> Result<Self, Box<dyn Error>> {
         let mut responses = Vec::<String>::new();
         for val in fs::read_to_string(filename)?.split("\n\n") {
-            let mut s = String::from(val);
-            s.truncate(val.trim_end_matches(&['\r', '\n'][..]).len());
-            responses.push(s);
-        }
-        if responses.is_empty() {
-            return Err(format!("file is empty: {}", filename).into());
+            responses.push(val.trim_matches(&['\r', '\n', ' '][..]).into());
         }
         log::info!(
             "Loaded {} response phrases from {}",
             responses.len(),
             filename
         );
-        Ok(Self::new_with_responses(responses))
+        Self::new_with_responses(responses)
     }
 
-    pub fn new_with_responses(responses: Vec<String>) -> Self {
-        Server {
+    pub fn new_with_responses(responses: Vec<String>) -> Result<Self, Box<dyn Error>> {
+        if responses.is_empty() {
+            return Err("responses must not be empty".into());
+        }
+        Ok(Server {
             responses,
             puzzle_complexity: DEFAULT_COMPLEXITY,
-        }
+        })
     }
 
     pub fn set_puzzle_complexity(&mut self, complexity: u8) {
@@ -240,6 +238,7 @@ impl<'a> Server {
                         client.send(&SolutionState::ACCEPTED)?;
                         client.send_with_varsize(self.random_response())?;
                     } else {
+                        client.send(&SolutionState::REJECTED)?;
                         log::error!("Solution rejected");
                     }
 
@@ -303,6 +302,7 @@ mod tests {
     use proto::SOLUTION_SIZE;
     use proto::SOLUTION_STATE_SIZE;
     use std::mem::size_of;
+    use tempfile::NamedTempFile;
 
     #[test]
     fn test_puzzle_new() {
@@ -385,12 +385,32 @@ mod tests {
     }
 
     #[test]
+    fn test_server_new_from_file() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(file, "response 1 \n\n").unwrap();
+        writeln!(file, " \rresponse 2 \n").unwrap();
+        writeln!(file, "\nresponse 3").unwrap();
+        file.flush().unwrap();
+
+        let server = Server::new_from_file(file.path().to_str().unwrap()).unwrap();
+        assert_eq!(
+            server.responses,
+            vec![
+                String::from("response 1"),
+                String::from("response 2"),
+                String::from("response 3"),
+            ]
+        );
+    }
+
+    #[test]
     fn test_client_and_server() {
         let addr = "127.0.0.1:4000";
         let mut server = Server::new_with_responses(vec![
             String::from("response 1"),
             String::from("response 2"),
-        ]);
+        ])
+        .unwrap();
         server.set_puzzle_complexity(3);
         thread::spawn(move || {
             server.run(addr).unwrap();
@@ -398,5 +418,20 @@ mod tests {
         let client = Client::new(addr);
         let response = client.get_response().unwrap();
         assert!(response == "response 1" || response == "response 2")
+    }
+
+    #[test]
+    fn test_server_invalid_solution() {
+        let addr = "127.0.0.1:4001";
+        let mut server = Server::new_with_responses(vec![String::from("response 1")]).unwrap();
+        server.set_puzzle_complexity(30);
+        thread::spawn(move || {
+            server.run(addr).unwrap();
+        });
+        let mut transport = Transport::new(TcpStream::connect(addr).unwrap());
+        transport.receive::<Puzzle>(size_of::<Puzzle>()).unwrap();
+        transport.send(&[0u8; SOLUTION_SIZE]).unwrap();
+        let result: SolutionState = transport.receive(SOLUTION_STATE_SIZE).unwrap();
+        assert_eq!(result, SolutionState::REJECTED);
     }
 }
