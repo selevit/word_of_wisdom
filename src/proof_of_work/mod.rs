@@ -1,12 +1,20 @@
 pub mod proto;
 use anyhow::Result;
-pub use proto::PUZZLE_SIZE;
-use proto::{Puzzle, PuzzleSolution};
+use proto::{
+    Puzzle, PuzzleSolution, SolutionState, PUZZLE_SIZE, SOLUTION_SIZE, SOLUTION_STATE_SIZE,
+};
+use rand::seq::SliceRandom;
 use rand::Rng;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
+use std::error::Error;
+use std::fs;
 use std::io::{Read, Write};
+use std::mem::size_of;
+use std::net::{Shutdown, TcpListener, TcpStream};
+use std::sync::Arc;
+use std::thread;
 
 pub const DEFAULT_COMPLEXITY: u8 = 4;
 
@@ -123,6 +131,158 @@ where
         self.c.read_exact(&mut buf)?;
         let result: R = bincode::deserialize(&buf)?;
         Ok(result)
+    }
+}
+
+enum ClientState {
+    Initial,
+    PuzzleSent,
+}
+
+struct Connection {
+    stream: TcpStream,
+    state: ClientState,
+}
+
+impl Connection {
+    pub fn new(stream: TcpStream) -> Self {
+        Self {
+            stream,
+            state: ClientState::Initial,
+        }
+    }
+}
+
+pub struct Server {
+    responses: Vec<String>,
+}
+
+impl Server {
+    pub fn new_from_file(filename: &str) -> Result<Self, Box<dyn Error>> {
+        let mut responses = Vec::<String>::new();
+        for val in fs::read_to_string(filename)?.split("\n\n") {
+            let mut s = String::from(val);
+            s.truncate(val.trim_end_matches(&['\r', '\n'][..]).len());
+            responses.push(s);
+        }
+        if responses.is_empty() {
+            return Err(format!("file is empty: {}", filename).into());
+        }
+        log::info!(
+            "Loaded {} response phrases from {}",
+            responses.len(),
+            filename
+        );
+        Ok(Self::new_with_responses(responses))
+    }
+
+    pub fn new_with_responses(responses: Vec<String>) -> Self {
+        Server { responses }
+    }
+
+    pub fn run(self) -> Result<(), Box<dyn Error>> {
+        Arc::new(self).run_listener()?;
+        Ok(())
+    }
+
+    fn handle_connection(&self, conn: &mut Connection) -> Result<()> {
+        let mut client = Transport::new(conn.stream.try_clone()?);
+        let puzzle = Puzzle::default();
+        let solver = PuzzleSolver::new(&puzzle);
+
+        loop {
+            match conn.state {
+                ClientState::Initial => {
+                    client.send(&puzzle)?;
+                    log::info!("Puzzle sent");
+                    conn.state = ClientState::PuzzleSent;
+                }
+                ClientState::PuzzleSent => {
+                    log::info!("Waiting for solution");
+                    let solution: PuzzleSolution = client.receive(SOLUTION_SIZE)?;
+                    log::info!("Solution received");
+
+                    if solver.is_valid_solution(&solution) {
+                        log::info!("Solution accepted");
+                        client.send(&SolutionState::ACCEPTED)?;
+                        client.send_with_varsize(self.random_response())?;
+                    } else {
+                        log::error!("Solution rejected");
+                    }
+
+                    conn.stream.shutdown(Shutdown::Both)?;
+                    log::info!("Connection closed");
+                    break;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn random_response(&self) -> &String {
+        self.responses.choose(&mut rand::thread_rng()).unwrap()
+    }
+
+    fn run_listener(self: Arc<Self>) -> Result<(), Box<dyn Error>> {
+        let listener = TcpListener::bind("0.0.0.0:4444")?;
+        log::info!("Listening on port 4444");
+
+        for stream in listener.incoming() {
+            let server_clone = self.clone();
+            match stream {
+                Ok(stream) => {
+                    log::info!("New TCP connection: {}", stream.peer_addr()?);
+                    thread::spawn(move || {
+                        let mut conn = Connection::new(stream);
+                        if let Err(e) = server_clone.handle_connection(&mut conn) {
+                            eprintln!("Connection error: {}", e);
+                        }
+                    });
+                }
+                Err(e) => {
+                    log::error!("Error establishing TCP connection: {}", e);
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+pub struct Client<'a> {
+    addr: &'a str,
+}
+
+impl<'a> Client<'a> {
+    pub fn new(addr: &'a str) -> Self {
+        Self { addr }
+    }
+
+    pub fn get_response(&self) -> Result<String, Box<dyn Error>> {
+        let stream = TcpStream::connect(self.addr)?;
+        let mut server = Transport::new(stream.try_clone()?);
+
+        let puzzle: Puzzle = server.receive(size_of::<Puzzle>())?;
+        log::info!("Puzzle received (complexity: {})", puzzle.complexity);
+
+        log::info!("Solving...");
+        let solver = PuzzleSolver::new(&puzzle); // precomputes a hash to increase the performance
+        let result = solver.solve();
+        log::info!("Puzzle solved with {} attempts", result.hashes_tried);
+        server.send(&result.solution)?;
+
+        let result = match server.receive::<SolutionState>(SOLUTION_STATE_SIZE)? {
+            SolutionState::ACCEPTED => {
+                log::info!("Solution accepted");
+                let server_msg_size: usize = server.receive(size_of::<usize>())?;
+                let server_msg: String = server.receive(server_msg_size)?;
+                Ok(server_msg)
+            }
+            SolutionState::REJECTED => Err("Solution rejected".into()),
+        };
+        let _ = stream.shutdown(Shutdown::Both);
+        result
     }
 }
 
