@@ -1,14 +1,10 @@
 use anyhow::Result;
-use env_logger::Env;
-use std::env;
 use std::error::Error;
-use word_of_wisdom::Client;
+use word_of_wisdom::{server_addr_from_env, setup_logging, Client};
 
 fn main() -> Result<(), Box<dyn Error>> {
-    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    let host = env::var("HOST").unwrap_or_else(|_| "127.0.0.1".into());
-    let port = env::var("PORT").unwrap_or_else(|_| "4444".into());
-    let addr = format!("{}:{}", host, port);
+    setup_logging();
+    let addr = server_addr_from_env();
     let client = Client::new(addr.as_str());
     match client.get_response() {
         Ok(r) => {
