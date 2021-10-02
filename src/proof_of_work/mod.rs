@@ -1,4 +1,4 @@
-pub mod proto;
+mod proto;
 use anyhow::Result;
 use proto::{
     Puzzle, PuzzleSolution, SolutionState, PUZZLE_SIZE, SOLUTION_SIZE, SOLUTION_STATE_SIZE,
@@ -155,9 +155,10 @@ impl Connection {
 
 pub struct Server {
     responses: Vec<String>,
+    puzzle_complexity: u8,
 }
 
-impl Server {
+impl<'a> Server {
     pub fn new_from_file(filename: &str) -> Result<Self, Box<dyn Error>> {
         let mut responses = Vec::<String>::new();
         for val in fs::read_to_string(filename)?.split("\n\n") {
@@ -177,17 +178,49 @@ impl Server {
     }
 
     pub fn new_with_responses(responses: Vec<String>) -> Self {
-        Server { responses }
+        Server {
+            responses,
+            puzzle_complexity: DEFAULT_COMPLEXITY,
+        }
     }
 
-    pub fn run(self) -> Result<(), Box<dyn Error>> {
-        Arc::new(self).run_listener()?;
+    pub fn set_puzzle_complexity(&mut self, complexity: u8) {
+        self.puzzle_complexity = complexity;
+    }
+
+    pub fn run(self, addr: &'a str) -> Result<(), Box<dyn Error>> {
+        Arc::new(self).run_listener(addr)?;
+        Ok(())
+    }
+
+    fn run_listener(self: Arc<Self>, addr: &'a str) -> Result<(), Box<dyn Error>> {
+        let listener = TcpListener::bind(addr)?;
+        log::info!("Listening on {}", addr);
+
+        for stream in listener.incoming() {
+            let server_clone = self.clone();
+            match stream {
+                Ok(stream) => {
+                    log::info!("New TCP connection: {}", stream.peer_addr()?);
+                    thread::spawn(move || {
+                        let mut conn = Connection::new(stream);
+                        if let Err(e) = server_clone.handle_connection(&mut conn) {
+                            eprintln!("Connection error: {}", e);
+                        }
+                    });
+                }
+                Err(e) => {
+                    log::error!("Error establishing TCP connection: {}", e);
+                }
+            }
+        }
+
         Ok(())
     }
 
     fn handle_connection(&self, conn: &mut Connection) -> Result<()> {
         let mut client = Transport::new(conn.stream.try_clone()?);
-        let puzzle = Puzzle::default();
+        let puzzle = Puzzle::new(self.puzzle_complexity);
         let solver = PuzzleSolver::new(&puzzle);
 
         loop {
@@ -222,31 +255,6 @@ impl Server {
 
     fn random_response(&self) -> &String {
         self.responses.choose(&mut rand::thread_rng()).unwrap()
-    }
-
-    fn run_listener(self: Arc<Self>) -> Result<(), Box<dyn Error>> {
-        let listener = TcpListener::bind("0.0.0.0:4444")?;
-        log::info!("Listening on port 4444");
-
-        for stream in listener.incoming() {
-            let server_clone = self.clone();
-            match stream {
-                Ok(stream) => {
-                    log::info!("New TCP connection: {}", stream.peer_addr()?);
-                    thread::spawn(move || {
-                        let mut conn = Connection::new(stream);
-                        if let Err(e) = server_clone.handle_connection(&mut conn) {
-                            eprintln!("Connection error: {}", e);
-                        }
-                    });
-                }
-                Err(e) => {
-                    log::error!("Error establishing TCP connection: {}", e);
-                }
-            }
-        }
-
-        Ok(())
     }
 }
 
@@ -374,5 +382,21 @@ mod tests {
 
         let received_puzzle = transport.receive::<Puzzle>(size_of::<Puzzle>()).unwrap();
         assert_eq!(sent_puzzle, received_puzzle);
+    }
+
+    #[test]
+    fn test_client_and_server() {
+        let addr = "127.0.0.1:4000";
+        let mut server = Server::new_with_responses(vec![
+            String::from("response 1"),
+            String::from("response 2"),
+        ]);
+        server.set_puzzle_complexity(3);
+        thread::spawn(move || {
+            server.run(addr).unwrap();
+        });
+        let client = Client::new(addr);
+        let response = client.get_response().unwrap();
+        assert!(response == "response 1" || response == "response 2")
     }
 }

@@ -8,5 +8,5 @@ const RESPONSES_FILENAME: &str = "server_responses.txt";
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     let server = Server::new_from_file(RESPONSES_FILENAME)?;
-    server.run()
+    server.run("127.0.0.1:4444")
 }
