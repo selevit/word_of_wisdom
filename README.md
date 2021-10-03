@@ -28,4 +28,4 @@ PUZZLE_COMPLEXITY=6 docker-compose up -d
 
 ## Why Hashcash?
 
-It uses a commonly known `sha256` hash function, which makes the client implementation very simple. Also this is the most known proof-of-work algorithm, as it's used in Bitcoin mining.
+It uses a commonly known `sha256` hash function, which makes the client implementation very simple. Also this is the most known proof-of-work algorithm, as it is used in Bitcoin's mining.
