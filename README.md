@@ -20,7 +20,7 @@ Also, if you pass `RUST_LOG=debug` to the client, you will be able to see the ha
 RUST_LOG=debug docker-compose run client
 ```
 
-The server uses the [Hashcash](https://en.wikipedia.org/wiki/Hashcash) proof of work algorithm with default complexity equal to 4. Also, when running a server, you can set a custom puzzle complexity.
+The server uses the [Hashcash](https://en.wikipedia.org/wiki/Hashcash) proof of work algorithm with default complexity equals to 4. Also, when running a server, you can set a custom puzzle complexity.
 
 ```bash
 PUZZLE_COMPLEXITY=6 docker-compose up -d
