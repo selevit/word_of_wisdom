@@ -2,8 +2,6 @@ use std::env;
 use std::error::Error;
 use word_of_wisdom::{server_addr_from_env, setup_logging, Server};
 
-// TODO: handle sigterm / sigint
-
 fn main() -> Result<(), Box<dyn Error>> {
     setup_logging();
     let addr = server_addr_from_env();
@@ -18,5 +16,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         server.set_puzzle_complexity(complexity);
     }
-    server.run(addr.as_str())
+    server.run(addr.as_str())?;
+    Ok(())
 }
