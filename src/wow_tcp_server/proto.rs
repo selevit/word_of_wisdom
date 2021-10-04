@@ -14,6 +14,6 @@ pub type PuzzleSolution = [u8; SOLUTION_SIZE];
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub enum SolutionState {
-    ACCEPTED,
-    REJECTED,
+    Accepted,
+    Rejected,
 }

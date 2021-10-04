@@ -232,10 +232,10 @@ impl<'a> Server {
 
                     if solver.is_valid_solution(&solution) {
                         log::info!("Solution accepted");
-                        client.send(&SolutionState::ACCEPTED)?;
+                        client.send(&SolutionState::Accepted)?;
                         client.send_with_varsize(self.random_response())?;
                     } else {
-                        client.send(&SolutionState::REJECTED)?;
+                        client.send(&SolutionState::Rejected)?;
                         log::error!("Solution rejected");
                     }
 
@@ -277,13 +277,13 @@ impl<'a> Client<'a> {
         server.send(&result.solution)?;
 
         let result = match server.receive::<SolutionState>(SOLUTION_STATE_SIZE)? {
-            SolutionState::ACCEPTED => {
+            SolutionState::Accepted => {
                 log::info!("Solution accepted");
                 let server_msg_size: usize = server.receive(size_of::<usize>())?;
                 let server_msg: String = server.receive(server_msg_size)?;
                 Ok(server_msg)
             }
-            SolutionState::REJECTED => Err("Solution rejected".into()),
+            SolutionState::Rejected => Err("Solution rejected".into()),
         };
         let _ = stream.shutdown(Shutdown::Both);
         result
@@ -343,10 +343,10 @@ mod tests {
         let mut mock_stream = SharedMockStream::new();
         let mut transport = Transport::<SharedMockStream>::new(mock_stream.clone());
 
-        transport.send(&SolutionState::ACCEPTED).unwrap();
+        transport.send(&SolutionState::Accepted).unwrap();
         let received = mock_stream.pop_bytes_written();
         assert_eq!(received.len(), SOLUTION_STATE_SIZE);
-        assert_eq!(received, serialize(&SolutionState::ACCEPTED).unwrap());
+        assert_eq!(received, serialize(&SolutionState::Accepted).unwrap());
 
         let puzzle = Puzzle::default();
         transport.send(&puzzle).unwrap();
@@ -415,11 +415,8 @@ mod tests {
     #[test]
     fn test_client_and_server() {
         let addr = "127.0.0.1:4000";
-        let mut server = Server::new(vec![
-            String::from("response 1"),
-            String::from("response 2"),
-        ])
-        .unwrap();
+        let mut server =
+            Server::new(vec![String::from("response 1"), String::from("response 2")]).unwrap();
         server.set_puzzle_complexity(3);
         thread::spawn(move || {
             server.run(addr).unwrap();
@@ -443,6 +440,6 @@ mod tests {
         transport.receive::<Puzzle>(size_of::<Puzzle>()).unwrap();
         transport.send(&[0u8; SOLUTION_SIZE]).unwrap();
         let result: SolutionState = transport.receive(SOLUTION_STATE_SIZE).unwrap();
-        assert_eq!(result, SolutionState::REJECTED);
+        assert_eq!(result, SolutionState::Rejected);
     }
 }

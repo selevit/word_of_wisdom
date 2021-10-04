@@ -1,4 +1,4 @@
-FROM rust:1.43 as builder
+FROM rust:1.55-buster as builder
 
 COPY . .
 RUN cargo test
@@ -6,9 +6,9 @@ RUN cargo build --release
 
 FROM debian:buster-slim
 RUN apt-get update && \
-  apt-get install -y dumb-init && \
-  apt-get clean && \
-  rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* &&
+    apt-get install -y dumb-init && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/
 
 RUN mkdir -p /data
 ENV RESPONSES_FILENAME /data/server_responses.txt
