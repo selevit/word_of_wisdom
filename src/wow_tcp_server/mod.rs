@@ -328,7 +328,7 @@ mod tests {
     fn test_is_not_valid_solution() {
         let puzzle = Puzzle::new(30);
         let solver = PuzzleSolver::new(&puzzle);
-        assert_eq!(solver.is_valid_solution(&[0u8; SOLUTION_SIZE]), false);
+        assert!(!solver.is_valid_solution(&[0u8; SOLUTION_SIZE]));
     }
 
     #[test]
