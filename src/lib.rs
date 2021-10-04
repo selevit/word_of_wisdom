@@ -1,8 +1,8 @@
 // lib.rs is created to avoid running same tests for both binaries.
-mod wow_tcp_server;
+mod wow;
 use env_logger::Env;
 use std::env;
-pub use wow_tcp_server::*;
+pub use wow::*;
 
 pub fn setup_logging() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
