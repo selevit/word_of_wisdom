@@ -132,11 +132,14 @@ where
         let result: R = bincode::deserialize(&buf)?;
         Ok(result)
     }
-}
 
-enum ClientState {
-    Initial,
-    PuzzleSent,
+    pub fn receive_varsize<R>(&mut self) -> Result<R>
+    where
+        R: DeserializeOwned,
+    {
+        let msg_size: usize = self.receive(size_of::<usize>())?;
+        self.receive::<R>(msg_size)
+    }
 }
 
 struct Connection {
@@ -156,6 +159,11 @@ impl Connection {
 pub struct Server {
     responses: Vec<String>,
     puzzle_complexity: u8,
+}
+
+enum ClientState {
+    Initial,
+    PuzzleSent,
 }
 
 impl<'a> Server {
@@ -279,8 +287,7 @@ impl<'a> Client<'a> {
         let result = match server.receive::<SolutionState>(SOLUTION_STATE_SIZE)? {
             SolutionState::Accepted => {
                 log::info!("Solution accepted");
-                let server_msg_size: usize = server.receive(size_of::<usize>())?;
-                let server_msg: String = server.receive(server_msg_size)?;
+                let server_msg: String = server.receive_varsize()?;
                 Ok(server_msg)
             }
             SolutionState::Rejected => Err("Solution rejected".into()),
@@ -381,6 +388,19 @@ mod tests {
 
         let received_puzzle = transport.receive::<Puzzle>(size_of::<Puzzle>()).unwrap();
         assert_eq!(sent_puzzle, received_puzzle);
+    }
+
+    #[test]
+    fn test_transport_receive_varsize() {
+        let mut mock_stream = SharedMockStream::new();
+        let mut transport = Transport::<SharedMockStream>::new(mock_stream.clone());
+        let sent_msg = String::from("hello, world");
+        let bin_data = serialize(&sent_msg).unwrap();
+        let msg_size = bin_data.len();
+        mock_stream.push_bytes_to_read(&serialize(&msg_size).unwrap());
+        mock_stream.push_bytes_to_read(&bin_data);
+        let received_msg: String = transport.receive_varsize().unwrap();
+        assert_eq!(sent_msg, received_msg);
     }
 
     #[test]
