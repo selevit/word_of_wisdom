@@ -1,3 +1,4 @@
+// lib.rs is created to avoid running same tests for both binaries.
 mod wow_tcp_server;
 use env_logger::Env;
 use std::env;

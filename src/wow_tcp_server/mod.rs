@@ -18,6 +18,19 @@ use std::thread;
 
 pub const DEFAULT_COMPLEXITY: u8 = 4;
 
+impl Puzzle {
+    pub fn new(complexity: u8) -> Self {
+        let value = rand::thread_rng().gen::<[u8; PUZZLE_SIZE]>();
+        Puzzle { complexity, value }
+    }
+}
+
+impl Default for Puzzle {
+    fn default() -> Self {
+        Self::new(DEFAULT_COMPLEXITY)
+    }
+}
+
 // A separate solver structure is needed in order not to blow the protocol structures.
 pub struct PuzzleSolver<'a> {
     puzzle: &'a Puzzle,
@@ -76,19 +89,6 @@ impl<'a> PuzzleSolver<'a> {
                 };
             }
         }
-    }
-}
-
-impl Puzzle {
-    pub fn new(complexity: u8) -> Self {
-        let value = rand::thread_rng().gen::<[u8; PUZZLE_SIZE]>();
-        Puzzle { complexity, value }
-    }
-}
-
-impl Default for Puzzle {
-    fn default() -> Self {
-        Self::new(DEFAULT_COMPLEXITY)
     }
 }
 
@@ -159,17 +159,7 @@ pub struct Server {
 }
 
 impl<'a> Server {
-    pub fn new_from_file(filename: &str) -> Result<Self, Box<dyn Error>> {
-        let mut responses = Vec::<String>::new();
-        log::info!("Loading response phrases from {}", filename);
-        for val in fs::read_to_string(filename)?.split("\n\n") {
-            responses.push(val.trim_matches(&['\r', '\n', ' '][..]).into());
-        }
-        log::info!("{} phrases loaded", responses.len());
-        Self::new_with_responses(responses)
-    }
-
-    pub fn new_with_responses(responses: Vec<String>) -> Result<Self, Box<dyn Error>> {
+    pub fn new(responses: Vec<String>) -> Result<Self, Box<dyn Error>> {
         if responses.is_empty() {
             return Err("responses must not be empty".into());
         }
@@ -177,6 +167,16 @@ impl<'a> Server {
             responses,
             puzzle_complexity: DEFAULT_COMPLEXITY,
         })
+    }
+
+    pub fn new_from_file(filename: &str) -> Result<Self, Box<dyn Error>> {
+        let mut responses = Vec::<String>::new();
+        log::info!("Loading response phrases from {}", filename);
+        for val in fs::read_to_string(filename)?.split("\n\n") {
+            responses.push(val.trim_matches(&['\r', '\n', ' '][..]).into());
+        }
+        log::info!("{} phrases loaded", responses.len());
+        Self::new(responses)
     }
 
     pub fn set_puzzle_complexity(&mut self, complexity: u8) {
@@ -415,7 +415,7 @@ mod tests {
     #[test]
     fn test_client_and_server() {
         let addr = "127.0.0.1:4000";
-        let mut server = Server::new_with_responses(vec![
+        let mut server = Server::new(vec![
             String::from("response 1"),
             String::from("response 2"),
         ])
@@ -433,7 +433,7 @@ mod tests {
     #[test]
     fn test_server_invalid_solution() {
         let addr = "127.0.0.1:4001";
-        let mut server = Server::new_with_responses(vec![String::from("response 1")]).unwrap();
+        let mut server = Server::new(vec![String::from("response 1")]).unwrap();
         server.set_puzzle_complexity(30);
         thread::spawn(move || {
             server.run(addr).unwrap();
