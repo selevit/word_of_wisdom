@@ -16,6 +16,5 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         server.set_puzzle_complexity(complexity);
     }
-    server.run(addr.as_str())?;
-    Ok(())
+    server.run(addr.as_str())
 }
