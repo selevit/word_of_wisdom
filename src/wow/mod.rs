@@ -72,7 +72,7 @@ impl<'a> PuzzleSolver<'a> {
             }
         }
 
-        log::debug!("Hash: {:x}, leading zeros: {}", hash, leading_zeros);
+        log::debug!("Hash: {:x}", hash);
         leading_zeros >= self.puzzle.complexity
     }
 
